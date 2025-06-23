@@ -88,6 +88,15 @@ const (
 	FlagStructuring         FlagType = "structuring"
 	FlagCircularTransfers   FlagType = "circular_transfers"
 	FlagDormantReactivation FlagType = "dormant_reactivation"
+	// AML-specific flags
+	FlagKYCExpired      FlagType = "kyc_expired"
+	FlagSanctionsMatch  FlagType = "sanctions_match"
+	FlagPEPInvolvement  FlagType = "pep_involvement"
+	FlagHighRiskCountry FlagType = "high_risk_country"
+	FlagCashIntensive   FlagType = "cash_intensive"
+	FlagVelocityAnomaly FlagType = "velocity_anomaly"
+	FlagAmountThreshold FlagType = "amount_threshold"
+	FlagSmurfingPattern FlagType = "smurfing_pattern"
 )
 
 type Severity string

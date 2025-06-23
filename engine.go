@@ -16,8 +16,11 @@ type AccountingEngine struct {
 	queryAPI              *QueryAPI
 	reconciliationService *ReconciliationService
 	accrualService        *AccrualService
-	reportingService      *ReportingService // Add reporting service
-	zbbService            *ZBBService       // Add ZBB service
+	reportingService      *ReportingService  // Add reporting service
+	zbbService            *ZBBService        // Add ZBB service
+	complianceService     *ComplianceService // Add compliance service
+	amlService            *AMLService        // Add AML service
+	forensicService       *ForensicService   // Add forensic service
 }
 
 // NewAccountingEngine creates a new accounting engine
@@ -42,7 +45,10 @@ func NewAccountingEngine(dbPath string) (*AccountingEngine, error) {
 	reconciliationService := NewReconciliationService(storage, queryAPI)
 	accrualService := NewAccrualService(storage, postingEngine, eventStore)
 	reportingService := NewReportingService(storage, queryAPI)
-	zbbService := NewZBBService(storage) // Add ZBB service
+	zbbService := NewZBBService(storage)                                     // Add ZBB service
+	complianceService := NewComplianceService(*storage)                      // Add compliance service (dereference)
+	forensicService := NewForensicService(storage, eventStore)               // Add forensic service
+	amlService := NewAMLService(storage, complianceService, forensicService) // Add AML service
 
 	return &AccountingEngine{
 		storage:               storage,
@@ -52,8 +58,11 @@ func NewAccountingEngine(dbPath string) (*AccountingEngine, error) {
 		queryAPI:              queryAPI,
 		reconciliationService: reconciliationService,
 		accrualService:        accrualService,
-		reportingService:      reportingService, // Add reporting service
-		zbbService:            zbbService,       // Add ZBB service
+		reportingService:      reportingService,  // Add reporting service
+		zbbService:            zbbService,        // Add ZBB service
+		complianceService:     complianceService, // Add compliance service
+		amlService:            amlService,        // Add AML service
+		forensicService:       forensicService,   // Add forensic service
 	}, nil
 }
 
@@ -383,8 +392,21 @@ func (ae *AccountingEngine) CreateLedger(ledger *Ledger) error {
 	return ae.storage.SaveLedger(ledger)
 }
 
-// GetStorage returns the underlying storage for the engine.
-// This is typically used for services that need direct access to storage.
-func (ae *AccountingEngine) GetStorage() *Storage {
-	return ae.storage
+// ----------------------------------------------------------------------------
+// Service Getters
+// ----------------------------------------------------------------------------
+
+// GetAMLService returns the AML service
+func (ae *AccountingEngine) GetAMLService() *AMLService {
+	return ae.amlService
+}
+
+// GetComplianceService returns the compliance service
+func (ae *AccountingEngine) GetComplianceService() *ComplianceService {
+	return ae.complianceService
+}
+
+// GetForensicService returns the forensic service
+func (ae *AccountingEngine) GetForensicService() *ForensicService {
+	return ae.forensicService
 }

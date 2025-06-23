@@ -33,6 +33,10 @@ var (
 	BucketTaxRules             = []byte("tax_rules")
 	BucketComplianceViolations = []byte("compliance_violations")
 	BucketTaxReturns           = []byte("tax_returns")
+	// AML buckets
+	BucketAMLRules     = []byte("aml_rules")
+	BucketAMLAlerts    = []byte("aml_alerts")
+	BucketAMLCustomers = []byte("aml_customers")
 )
 
 // Storage provides persistent storage for the accounting system
@@ -73,6 +77,8 @@ func (s *Storage) initBuckets() error {
 			BucketBudgetAllocations, BucketBudgetTracking,
 			// Compliance buckets
 			BucketComplianceRules, BucketTaxRules, BucketComplianceViolations, BucketTaxReturns,
+			// AML buckets
+			BucketAMLRules, BucketAMLAlerts, BucketAMLCustomers,
 		}
 
 		for _, bucket := range buckets {
@@ -988,4 +994,164 @@ func (s *Storage) QueryEntries(options *QueryOptions) ([]*Entry, error) {
 	}
 
 	return entries, err
+}
+
+// ----------------------------------------------------------------------------
+// AML Storage Methods
+// ----------------------------------------------------------------------------
+
+// SaveAMLRule saves an AML rule
+func (s *Storage) SaveAMLRule(rule *AMLRule) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLRules)
+		data, err := json.Marshal(rule)
+		if err != nil {
+			return fmt.Errorf("failed to marshal AML rule: %w", err)
+		}
+		return b.Put([]byte(rule.ID), data)
+	})
+}
+
+// GetAMLRule retrieves an AML rule by ID
+func (s *Storage) GetAMLRule(id string) (*AMLRule, error) {
+	var rule AMLRule
+
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLRules)
+		data := b.Get([]byte(id))
+		if data == nil {
+			return fmt.Errorf("AML rule not found: %s", id)
+		}
+		return json.Unmarshal(data, &rule)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &rule, nil
+}
+
+// GetAllAMLRules retrieves all AML rules
+func (s *Storage) GetAllAMLRules() ([]*AMLRule, error) {
+	var rules []*AMLRule
+
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLRules)
+		c := b.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var rule AMLRule
+			if err := json.Unmarshal(v, &rule); err != nil {
+				return fmt.Errorf("failed to unmarshal AML rule: %w", err)
+			}
+			rules = append(rules, &rule)
+		}
+		return nil
+	})
+
+	return rules, err
+}
+
+// SaveAMLAlert saves an AML alert
+func (s *Storage) SaveAMLAlert(alert *AMLAlert) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLAlerts)
+		data, err := json.Marshal(alert)
+		if err != nil {
+			return fmt.Errorf("failed to marshal AML alert: %w", err)
+		}
+		return b.Put([]byte(alert.ID), data)
+	})
+}
+
+// GetAMLAlert retrieves an AML alert by ID
+func (s *Storage) GetAMLAlert(id string) (*AMLAlert, error) {
+	var alert AMLAlert
+
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLAlerts)
+		data := b.Get([]byte(id))
+		if data == nil {
+			return fmt.Errorf("AML alert not found: %s", id)
+		}
+		return json.Unmarshal(data, &alert)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &alert, nil
+}
+
+// GetAMLAlerts retrieves all AML alerts
+func (s *Storage) GetAMLAlerts() ([]*AMLAlert, error) {
+	var alerts []*AMLAlert
+
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLAlerts)
+		c := b.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var alert AMLAlert
+			if err := json.Unmarshal(v, &alert); err != nil {
+				return fmt.Errorf("failed to unmarshal AML alert: %w", err)
+			}
+			alerts = append(alerts, &alert)
+		}
+		return nil
+	})
+
+	return alerts, err
+}
+
+// SaveAMLCustomer saves an AML customer
+func (s *Storage) SaveAMLCustomer(customer *AMLCustomer) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLCustomers)
+		data, err := json.Marshal(customer)
+		if err != nil {
+			return fmt.Errorf("failed to marshal AML customer: %w", err)
+		}
+		return b.Put([]byte(customer.ID), data)
+	})
+}
+
+// GetAMLCustomer retrieves an AML customer by ID
+func (s *Storage) GetAMLCustomer(id string) (*AMLCustomer, error) {
+	var customer AMLCustomer
+
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLCustomers)
+		data := b.Get([]byte(id))
+		if data == nil {
+			return fmt.Errorf("AML customer not found: %s", id)
+		}
+		return json.Unmarshal(data, &customer)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &customer, nil
+}
+
+// GetAllAMLCustomers retrieves all AML customers
+func (s *Storage) GetAllAMLCustomers() ([]*AMLCustomer, error) {
+	var customers []*AMLCustomer
+
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(BucketAMLCustomers)
+		c := b.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var customer AMLCustomer
+			if err := json.Unmarshal(v, &customer); err != nil {
+				return fmt.Errorf("failed to unmarshal AML customer: %w", err)
+			}
+			customers = append(customers, &customer)
+		}
+		return nil
+	})
+
+	return customers, err
 }
