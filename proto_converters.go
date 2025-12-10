@@ -235,12 +235,17 @@ func EntryFromProto(pbEntry *pb.Entry) *Entry {
 		entryType = Credit
 	}
 	
+	amount := AmountFromProto(pbEntry.Amount)
+	if amount == nil {
+		amount = &Amount{} // Default to empty amount if nil
+	}
+	
 	return &Entry{
 		ID:            pbEntry.Id,
 		TransactionID: pbEntry.TransactionId,
 		AccountID:     pbEntry.AccountId,
 		Type:          entryType,
-		Amount:        *AmountFromProto(pbEntry.Amount),
+		Amount:        *amount,
 		Dimensions:    DimensionsFromProto(pbEntry.Dimensions),
 	}
 }
@@ -254,9 +259,12 @@ func EntriesToProto(entries []Entry) []*pb.Entry {
 }
 
 func EntriesFromProto(pbEntries []*pb.Entry) []Entry {
-	result := make([]Entry, len(pbEntries))
-	for i, pbEntry := range pbEntries {
-		result[i] = *EntryFromProto(pbEntry)
+	result := make([]Entry, 0, len(pbEntries))
+	for _, pbEntry := range pbEntries {
+		entry := EntryFromProto(pbEntry)
+		if entry != nil {
+			result = append(result, *entry)
+		}
 	}
 	return result
 }
