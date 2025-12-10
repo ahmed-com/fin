@@ -1,0 +1,252 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// AMLFramework enum
+enum AMLFramework {
+  AML_FRAMEWORK_UNSPECIFIED = 0;
+  AML_FRAMEWORK_BSA = 1;
+  AML_FRAMEWORK_AMLD = 2;
+  AML_FRAMEWORK_FATF = 3;
+  AML_FRAMEWORK_FINCEN = 4;
+  AML_FRAMEWORK_OFAC = 5;
+}
+
+// AMLRiskLevel enum
+enum AMLRiskLevel {
+  AML_RISK_LEVEL_UNSPECIFIED = 0;
+  AML_RISK_LEVEL_LOW = 1;
+  AML_RISK_LEVEL_MEDIUM = 2;
+  AML_RISK_LEVEL_HIGH = 3;
+  AML_RISK_LEVEL_CRITICAL = 4;
+}
+
+// AMLRuleType enum
+enum AMLRuleType {
+  AML_RULE_TYPE_UNSPECIFIED = 0;
+  AML_RULE_TYPE_CTR = 1;
+  AML_RULE_TYPE_SAR = 2;
+  AML_RULE_TYPE_STRUCTURING = 3;
+  AML_RULE_TYPE_SMURFING = 4;
+  AML_RULE_TYPE_LAYERING = 5;
+  AML_RULE_TYPE_RAPID_MOVEMENT = 6;
+  AML_RULE_TYPE_ROUND_AMOUNTS = 7;
+  AML_RULE_TYPE_KYC = 8;
+  AML_RULE_TYPE_CDD = 9;
+  AML_RULE_TYPE_EDD = 10;
+  AML_RULE_TYPE_PEP = 11;
+  AML_RULE_TYPE_SANCTIONS = 12;
+  AML_RULE_TYPE_HIGH_RISK_JURISDICTION = 13;
+  AML_RULE_TYPE_NCCT = 14;
+  AML_RULE_TYPE_VELOCITY = 15;
+  AML_RULE_TYPE_FREQUENCY = 16;
+  AML_RULE_TYPE_CONCENTRATION = 17;
+  AML_RULE_TYPE_UNUSUAL_TIMING = 18;
+  AML_RULE_TYPE_CIRCULAR_TRANSFERS = 19;
+  AML_RULE_TYPE_CASH_INTENSIVE = 20;
+  AML_RULE_TYPE_HIGH_RISK_PRODUCTS = 21;
+  AML_RULE_TYPE_ACCOUNT_DORMANCY = 22;
+  AML_RULE_TYPE_IDENTITY_VERIFICATION = 23;
+  AML_RULE_TYPE_SOURCE_OF_FUNDS = 24;
+  AML_RULE_TYPE_WIRE_STRIPPING = 25;
+  AML_RULE_TYPE_THIRD_PARTY_CHECK = 26;
+  AML_RULE_TYPE_NEGATIVE_MEDIA = 27;
+  AML_RULE_TYPE_ACCOUNT_TAKEOVER = 28;
+  AML_RULE_TYPE_TRADE_BASED_ML = 29;
+  AML_RULE_TYPE_SHELL_COMPANY = 30;
+  AML_RULE_TYPE_PREPAID_CARDS = 31;
+  AML_RULE_TYPE_CRYPTOCURRENCY = 32;
+  AML_RULE_TYPE_JUST_UNDER_THRESHOLD = 33;
+  AML_RULE_TYPE_UNEXPECTED_GEOGRAPHY = 34;
+}
+
+// InvestigationAction
+message InvestigationAction {
+  string id = 1;
+  string type = 2;
+  string description = 3;
+  string taken_by = 4;
+  google.protobuf.Timestamp taken_at = 5;
+  string result = 6;
+}
+
+// InvestigationNote
+message InvestigationNote {
+  string id = 1;
+  string content = 2;
+  string created_by = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// AMLInvestigation
+message AMLInvestigation {
+  string id = 1;
+  string alert_id = 2;
+  string investigator = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp completed_at = 5;
+  string status = 6;
+  string priority = 7;
+  repeated string findings = 8;
+  repeated InvestigationAction actions = 9;
+  repeated InvestigationNote notes = 10;
+}
+
+// AMLEvidence
+message AMLEvidence {
+  string type = 1;
+  string description = 2;
+  string value_json = 3; // JSON-encoded value
+  string source = 4;
+  double confidence = 5;
+  google.protobuf.Timestamp collected_at = 6;
+}
+
+// AMLDisposition
+message AMLDisposition {
+  string id = 1;
+  string type = 2;
+  string description = 3;
+  string decided_by = 4;
+  google.protobuf.Timestamp decided_at = 5;
+  string rationale = 6;
+  string sar_number = 7;
+  repeated string reported_to = 8;
+}
+
+// AMLAlert
+message AMLAlert {
+  string id = 1;
+  AMLRuleType rule_type = 2;
+  AMLFramework framework = 3;
+  AMLRiskLevel risk_level = 4;
+  string title = 5;
+  string description = 6;
+  string entity_id = 7;
+  string entity_type = 8;
+  repeated string transaction_ids = 9;
+  repeated string account_ids = 10;
+  Amount amount = 11;
+  string currency = 12;
+  google.protobuf.Timestamp detected_at = 13;
+  string status = 14;
+  string assigned_to = 15;
+  AMLInvestigation investigation = 16;
+  repeated AMLEvidence evidence = 17;
+  repeated AMLDisposition dispositions = 18;
+  google.protobuf.Timestamp created_at = 19;
+  google.protobuf.Timestamp updated_at = 20;
+}
+
+// AMLRule
+message AMLRule {
+  string id = 1;
+  string name = 2;
+  AMLRuleType type = 3;
+  AMLFramework framework = 4;
+  string description = 5;
+  bool enabled = 6;
+  map<string, string> thresholds = 7; // JSON-encoded threshold values
+  map<string, int32> time_windows = 8;
+  repeated string currencies = 9;
+  repeated string countries = 10;
+  int32 base_score = 11;
+  double risk_multiple = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+// AMLCustomer
+message AMLCustomer {
+  string id = 1;
+  string customer_id = 2;
+  string name = 3;
+  string type = 4;
+  AMLRiskLevel risk_level = 5;
+  string country = 6;
+  bool is_pep = 7;
+  bool is_high_risk = 8;
+  bool sanctions_match = 9;
+  google.protobuf.Timestamp last_kyc_date = 10;
+  google.protobuf.Timestamp last_cdd_date = 11;
+  google.protobuf.Timestamp next_review_date = 12;
+  google.protobuf.Timestamp onboarding_date = 13;
+  string expected_activity = 14;
+  string business_purpose = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+// AMLTransaction
+message AMLTransaction {
+  string transaction_id = 1;
+  Amount amount = 2;
+  string currency = 3;
+  google.protobuf.Timestamp date = 4;
+  string from_customer_id = 5;
+  string to_customer_id = 6;
+  string from_country = 7;
+  string to_country = 8;
+  string purpose = 9;
+  string channel = 10;
+  int32 risk_score = 11;
+  bool is_structured = 12;
+  bool is_suspicious = 13;
+  repeated string flags = 14;
+}
+
+// CustomerRiskSummary
+message CustomerRiskSummary {
+  string customer_id = 1;
+  string customer_name = 2;
+  int32 risk_score = 3;
+  int32 alert_count = 4;
+  int64 total_volume = 5;
+  google.protobuf.Timestamp last_activity = 6;
+  repeated string risk_factors = 7;
+}
+
+// AMLComplianceMetrics
+message AMLComplianceMetrics {
+  double ctr_filing_rate = 1;
+  double sar_filing_rate = 2;
+  double false_positive_rate = 3;
+  int32 avg_resolution_time_hours = 4;
+  int32 compliance_score = 5;
+}
+
+// AMLTrendAnalysis
+message AMLTrendAnalysis {
+  repeated int32 alert_trend_30_days = 1;
+  repeated int64 volume_trend_30_days = 2;
+  repeated double risk_score_trend = 3;
+  repeated string emerging_patterns = 4;
+}
+
+// AMLRecommendation
+message AMLRecommendation {
+  string priority = 1;
+  string category = 2;
+  string title = 3;
+  string description = 4;
+  repeated string action_items = 5;
+  google.protobuf.Timestamp due_date = 6;
+}
+
+// AMLDashboard
+message AMLDashboard {
+  google.protobuf.Timestamp period_start = 1;
+  google.protobuf.Timestamp period_end = 2;
+  int32 total_alerts = 3;
+  map<string, int32> alerts_by_risk_level = 4;
+  map<string, int32> alerts_by_type = 5;
+  repeated CustomerRiskSummary top_risky_customers = 6;
+  AMLComplianceMetrics compliance_metrics = 7;
+  AMLTrendAnalysis trend_analysis = 8;
+  repeated AMLRecommendation recommended_actions = 9;
+}

@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// CompanyStatus enum
+enum CompanyStatus {
+  COMPANY_STATUS_UNSPECIFIED = 0;
+  COMPANY_STATUS_ACTIVE = 1;
+  COMPANY_STATUS_INACTIVE = 2;
+  COMPANY_STATUS_SUSPENDED = 3;
+  COMPANY_STATUS_MERGED = 4;
+}
+
+// Address
+message Address {
+  string street1 = 1;
+  string street2 = 2;
+  string city = 3;
+  string state = 4;
+  string postal_code = 5;
+  string country = 6;
+}
+
+// PostingAction
+message PostingAction {
+  string type = 1;
+  map<string, string> parameters = 2;
+}
+
+// AutoPostingRule
+message AutoPostingRule {
+  string id = 1;
+  string name = 2;
+  string condition = 3;
+  repeated PostingAction actions = 4;
+  bool is_active = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// CompanySettings
+message CompanySettings {
+  string default_chart_of_accounts = 1;
+  bool allow_intercompany_transactions = 2;
+  Amount require_approval_over = 3;
+  repeated AutoPostingRule auto_posting_rules = 4;
+  string period_locking_policy = 5;
+  string reporting_currency = 6;
+}
+
+// Company
+message Company {
+  string id = 1;
+  string name = 2;
+  string legal_name = 3;
+  string tax_id = 4;
+  string base_currency = 5;
+  google.protobuf.Timestamp fiscal_year_end = 6;
+  Address address = 7;
+  CompanySettings settings = 8;
+  google.protobuf.Timestamp created_at = 9;
+  string created_by = 10;
+  CompanyStatus status = 11;
+  string parent_company_id = 12;
+  map<string, string> metadata = 13;
+}
+
+// IntercompanyStatus enum
+enum IntercompanyStatus {
+  INTERCOMPANY_STATUS_UNSPECIFIED = 0;
+  INTERCOMPANY_STATUS_PENDING = 1;
+  INTERCOMPANY_STATUS_MATCHED = 2;
+  INTERCOMPANY_STATUS_RECONCILED = 3;
+  INTERCOMPANY_STATUS_DISPUTE = 4;
+}
+
+// IntercompanyTransaction
+message IntercompanyTransaction {
+  string id = 1;
+  string description = 2;
+  string source_company_id = 3;
+  string target_company_id = 4;
+  string source_transaction_id = 5;
+  string target_transaction_id = 6;
+  Amount amount = 7;
+  double exchange_rate = 8;
+  IntercompanyStatus matching_status = 9;
+  google.protobuf.Timestamp created_at = 10;
+  string created_by = 11;
+  google.protobuf.Timestamp reconciled_at = 12;
+  string reconciled_by = 13;
+}
+
+// ConsolidationRule
+message ConsolidationRule {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string rule_type = 4;
+  repeated string parameters = 5;
+  bool is_active = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// ConsolidationGroup
+message ConsolidationGroup {
+  string id = 1;
+  string name = 2;
+  string parent_company_id = 3;
+  repeated string subsidiary_ids = 4;
+  string consolidation_currency = 5;
+  repeated ConsolidationRule rules = 6;
+  google.protobuf.Timestamp created_at = 7;
+  string created_by = 8;
+}
+
+// EliminationEntry
+message EliminationEntry {
+  string id = 1;
+  string consolidation_id = 2;
+  string description = 3;
+  Amount amount = 4;
+  string source_company_id = 5;
+  string target_company_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// ConsolidatedStatement
+message ConsolidatedStatement {
+  string id = 1;
+  string group_id = 2;
+  string period_id = 3;
+  string statement_type = 4;
+  repeated string company_ids = 5;
+  string currency = 6;
+  bytes data = 7; // JSON or other format
+  google.protobuf.Timestamp generated_at = 8;
+  string generated_by = 9;
+}

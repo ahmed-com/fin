@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// AccrualType enum
+enum AccrualType {
+  ACCRUAL_TYPE_UNSPECIFIED = 0;
+  ACCRUAL_TYPE_REVENUE = 1;
+  ACCRUAL_TYPE_EXPENSE = 2;
+  ACCRUAL_TYPE_DEFERRED_REVENUE = 3;
+  ACCRUAL_TYPE_DEFERRED_EXPENSE = 4;
+}
+
+// RecognitionEntry
+message RecognitionEntry {
+  string id = 1;
+  string schedule_id = 2;
+  int32 period_number = 3;
+  google.protobuf.Timestamp recognition_date = 4;
+  Amount amount = 5;
+  string status = 6;
+  string transaction_id = 7;
+  google.protobuf.Timestamp processed_at = 8;
+}
+
+// AccrualTemplate
+message AccrualTemplate {
+  string id = 1;
+  string name = 2;
+  AccrualType accrual_type = 3;
+  string accrual_account_id = 4;
+  string revenue_account_id = 5;
+  string expense_account_id = 6;
+  string deferral_account_id = 7;
+  repeated Dimension dimensions = 8;
+}

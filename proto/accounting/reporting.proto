@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// CashFlowCategory enum
+enum CashFlowCategory {
+  CASH_FLOW_CATEGORY_UNSPECIFIED = 0;
+  CASH_FLOW_CATEGORY_OPERATING = 1;
+  CASH_FLOW_CATEGORY_INVESTING = 2;
+  CASH_FLOW_CATEGORY_FINANCING = 3;
+}
+
+// FinancialLineItem
+message FinancialLineItem {
+  string account_id = 1;
+  string account_name = 2;
+  AccountType account_type = 3;
+  Amount amount = 4;
+  int32 level = 5;
+  bool is_subtotal = 6;
+  repeated FinancialLineItem children = 7;
+}
+
+// FinancialStatement
+message FinancialStatement {
+  string name = 1;
+  google.protobuf.Timestamp as_of_date = 2;
+  google.protobuf.Timestamp from_date = 3;
+  string currency = 4;
+  repeated FinancialLineItem line_items = 5;
+  Amount total_assets = 6;
+  Amount total_liabilities = 7;
+  Amount total_equity = 8;
+  Amount net_income = 9;
+}
+
+// CashFlowItem
+message CashFlowItem {
+  string description = 1;
+  Amount amount = 2;
+  CashFlowCategory category = 3;
+}
+
+// CashFlowStatement
+message CashFlowStatement {
+  string name = 1;
+  google.protobuf.Timestamp from_date = 2;
+  google.protobuf.Timestamp to_date = 3;
+  string currency = 4;
+  repeated CashFlowItem operating_activities = 5;
+  repeated CashFlowItem investing_activities = 6;
+  repeated CashFlowItem financing_activities = 7;
+  Amount net_cash_flow = 8;
+  Amount beginning_cash = 9;
+  Amount ending_cash = 10;
+}

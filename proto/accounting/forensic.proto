@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// FlagType enum
+enum FlagType {
+  FLAG_TYPE_UNSPECIFIED = 0;
+  FLAG_TYPE_ROUND_AMOUNTS = 1;
+  FLAG_TYPE_HIGH_FREQUENCY = 2;
+  FLAG_TYPE_UNUSUAL_TIMING = 3;
+  FLAG_TYPE_COMPLEX_ROUTING = 4;
+  FLAG_TYPE_LAYERING = 5;
+  FLAG_TYPE_RAPID_MOVEMENT = 6;
+  FLAG_TYPE_STRUCTURING = 7;
+  FLAG_TYPE_CIRCULAR_TRANSFERS = 8;
+  FLAG_TYPE_DORMANT_REACTIVATION = 9;
+  FLAG_TYPE_KYC_EXPIRED = 10;
+  FLAG_TYPE_SANCTIONS_MATCH = 11;
+  FLAG_TYPE_PEP_INVOLVEMENT = 12;
+  FLAG_TYPE_HIGH_RISK_COUNTRY = 13;
+  FLAG_TYPE_CASH_INTENSIVE = 14;
+  FLAG_TYPE_VELOCITY_ANOMALY = 15;
+  FLAG_TYPE_AMOUNT_THRESHOLD = 16;
+  FLAG_TYPE_SMURFING_PATTERN = 17;
+}
+
+// Severity enum
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+// ForensicFlag
+message ForensicFlag {
+  FlagType type = 1;
+  Severity severity = 2;
+  string description = 3;
+  repeated string evidence = 4;
+  google.protobuf.Timestamp triggered = 5;
+}
+
+// MoneyTrailStep
+message MoneyTrailStep {
+  string transaction_id = 1;
+  string from_account = 2;
+  string to_account = 3;
+  Amount amount = 4;
+  google.protobuf.Timestamp date = 5;
+  string description = 6;
+  string user_id = 7;
+}
+
+// MoneyTrail
+message MoneyTrail {
+  string id = 1;
+  Amount start_amount = 2;
+  Amount end_amount = 3;
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+  repeated MoneyTrailStep path = 6;
+  int32 total_steps = 7;
+  bool suspicious = 8;
+  repeated ForensicFlag flags = 9;
+}
+
+// QueryOptions
+message QueryOptions {
+  repeated Filter filters = 1;
+  string sort_by = 2;
+  string sort_order = 3;
+  int32 limit = 4;
+}
+
+// Filter
+message Filter {
+  string field = 1;
+  string operator = 2;
+  string value_json = 3; // JSON-encoded value
+}
+
+// DiscrepancyType enum
+enum DiscrepancyType {
+  DISCREPANCY_TYPE_UNSPECIFIED = 0;
+  DISCREPANCY_TYPE_AMOUNT_MISMATCH = 1;
+  DISCREPANCY_TYPE_MISSING_ENTRY = 2;
+  DISCREPANCY_TYPE_DUPLICATE_ENTRY = 3;
+  DISCREPANCY_TYPE_DATE_MISMATCH = 4;
+  DISCREPANCY_TYPE_ACCOUNT_MISMATCH = 5;
+  DISCREPANCY_TYPE_IMBALANCE = 6;
+}
+
+// Discrepancy
+message Discrepancy {
+  string id = 1;
+  DiscrepancyType type = 2;
+  string description = 3;
+  Amount expected_amount = 4;
+  Amount actual_amount = 5;
+  Amount difference = 6;
+  repeated string related_transactions = 7;
+  repeated string related_accounts = 8;
+  Severity severity = 9;
+  google.protobuf.Timestamp detected_at = 10;
+}
+
+// AuditTrailEntry
+message AuditTrailEntry {
+  string id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+  string action = 4;
+  string user_id = 5;
+  bytes before = 6; // JSON or proto bytes
+  bytes after = 7;  // JSON or proto bytes
+  google.protobuf.Timestamp timestamp = 8;
+  string ip_address = 9;
+  map<string, string> metadata = 10;
+}
