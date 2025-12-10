@@ -1019,8 +1019,8 @@ func (s *Storage) GetTransactionsByDateRange(companyID string, startDate, endDat
 }
 
 // GetComplianceViolations retrieves compliance violations for a company
-func (s *Storage) GetComplianceViolations(companyID string) ([]ComplianceViolation, error) {
-	var violations []ComplianceViolation
+func (s *Storage) GetComplianceViolations(companyID string) ([]*ComplianceViolation, error) {
+	var violations []*ComplianceViolation
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketComplianceViolations)
@@ -1032,7 +1032,7 @@ func (s *Storage) GetComplianceViolations(companyID string) ([]ComplianceViolati
 				return fmt.Errorf("failed to unmarshal compliance violation: %w", err)
 			}
 			violation := ComplianceViolationFromProto(pbViolation)
-			violations = append(violations, *violation)
+			violations = append(violations, violation)
 		}
 		return nil
 	})
