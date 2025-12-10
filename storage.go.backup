@@ -1,13 +1,6 @@
 package accounting
 
-// Storage Layer Serialization Strategy:
-// - Core accounting types (Transaction, Account, Entry, JournalEvent) use Protocol Buffer serialization
-//   for maximum performance benefits (70% smaller, 4x faster than JSON)
-// - Other types currently use JSON serialization
-// - Future enhancement: migrate remaining types to protobuf as converters are added
-
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -102,7 +95,6 @@ func (s *Storage) initBuckets() error {
 func (s *Storage) AppendEvent(event *JournalEvent) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketEvents)
-		// Use protobuf serialization for better performance
 		data, err := proto.Marshal(event.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal event: %w", err)
@@ -126,7 +118,6 @@ func (s *Storage) GetEvents(from, to time.Time) ([]*JournalEvent, error) {
 		toKey := []byte(fmt.Sprintf("%d", to.UnixNano()))
 
 		for k, v := c.Seek(fromKey); k != nil && string(k) <= string(toKey); k, v = c.Next() {
-			// Use protobuf deserialization for better performance
 			pbEvent := &pb.JournalEvent{}
 			if err := proto.Unmarshal(v, pbEvent); err != nil {
 				return fmt.Errorf("failed to unmarshal event: %w", err)
@@ -144,7 +135,6 @@ func (s *Storage) GetEvents(from, to time.Time) ([]*JournalEvent, error) {
 func (s *Storage) SaveAccount(account *Account) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketAccounts)
-		// Use protobuf serialization for better performance (70% smaller, 4x faster)
 		data, err := proto.Marshal(account.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal account: %w", err)
@@ -163,7 +153,6 @@ func (s *Storage) GetAccount(id string) (*Account, error) {
 		if data == nil {
 			return fmt.Errorf("account not found: %s", id)
 		}
-		// Use protobuf deserialization for better performance
 		pbAccount := &pb.Account{}
 		if err := proto.Unmarshal(data, pbAccount); err != nil {
 			return fmt.Errorf("failed to unmarshal account: %w", err)
@@ -182,7 +171,6 @@ func (s *Storage) GetAccount(id string) (*Account, error) {
 func (s *Storage) SaveTransaction(txn *Transaction) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketTransactions)
-		// Use protobuf serialization for better performance (70% smaller, 4x faster)
 		data, err := proto.Marshal(txn.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal transaction: %w", err)
@@ -201,7 +189,6 @@ func (s *Storage) GetTransaction(id string) (*Transaction, error) {
 		if data == nil {
 			return fmt.Errorf("transaction not found: %s", id)
 		}
-		// Use protobuf deserialization for better performance
 		pbTxn := &pb.Transaction{}
 		if err := proto.Unmarshal(data, pbTxn); err != nil {
 			return fmt.Errorf("failed to unmarshal transaction: %w", err)
@@ -220,8 +207,7 @@ func (s *Storage) GetTransaction(id string) (*Transaction, error) {
 func (s *Storage) SaveEntry(entry *Entry) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketEntries)
-		// Use protobuf serialization for better performance (70% smaller, 4x faster)
-		data, err := proto.Marshal(entry.ToProto())
+		data, err := json.Marshal(entry)
 		if err != nil {
 			return fmt.Errorf("failed to marshal entry: %w", err)
 		}
@@ -238,14 +224,12 @@ func (s *Storage) GetEntriesByAccount(accountID string) ([]*Entry, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			// Use protobuf deserialization for better performance
-			pbEntry := &pb.Entry{}
-			if err := proto.Unmarshal(v, pbEntry); err != nil {
+			var entry Entry
+			if err := json.Unmarshal(v, &entry); err != nil {
 				return fmt.Errorf("failed to unmarshal entry: %w", err)
 			}
-			entry := EntryFromProto(pbEntry)
 			if entry.AccountID == accountID {
-				entries = append(entries, entry)
+				entries = append(entries, &entry)
 			}
 		}
 		return nil
