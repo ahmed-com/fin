@@ -186,19 +186,30 @@ tx := &Transaction{
         {AccountID: "revenue", Type: Credit, Amount: Amount{Value: 100000, Currency: "USD"}},
     },
 }
-err := engine.PostTransaction(tx, userID, "Sale transaction")
+// First create the transaction
+err := engine.CreateTransaction(tx, userID)
+if err != nil {
+    // handle error
+}
+// Then post it
+err = engine.PostTransaction(tx.ID, userID)
 ```
 
 #### Querying Balances
 
 ```go
-balance, err := engine.GetAccountBalance("cash", asOfTime, dimensions)
+balance, err := engine.GetAccountBalance("cash", time.Now())
+// balance is *BalanceResult with balance.Balance.Value (in cents) and balance.Balance.Currency
 ```
 
 #### Running AML Checks
 
 ```go
-alerts, err := engine.RunAMLChecks(transaction, customer)
+amlService := engine.GetAMLService()
+customerInfo := map[string]*AMLCustomer{
+    "customer1": {CustomerID: "customer1", RiskLevel: "medium"},
+}
+alerts, err := amlService.MonitorTransaction(transaction, customerInfo)
 ```
 
 ## Need Help?
