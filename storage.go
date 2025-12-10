@@ -1,13 +1,10 @@
 package accounting
 
 // Storage Layer Serialization Strategy:
-// - Core accounting types (Transaction, Account, Entry, JournalEvent) use Protocol Buffer serialization
-//   for maximum performance benefits (70% smaller, 4x faster than JSON)
-// - Other types currently use JSON serialization
-// - Future enhancement: migrate remaining types to protobuf as converters are added
+// - All types now use Protocol Buffer serialization for maximum performance benefits
+//   (70% smaller, 4x faster than JSON)
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -258,7 +255,7 @@ func (s *Storage) GetEntriesByAccount(accountID string) ([]*Entry, error) {
 func (s *Storage) SaveLedger(ledger *Ledger) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketLedgers)
-		data, err := json.Marshal(ledger)
+		data, err := proto.Marshal(ledger.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal ledger: %w", err)
 		}
@@ -270,7 +267,7 @@ func (s *Storage) SaveLedger(ledger *Ledger) error {
 func (s *Storage) SavePeriod(period *Period) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketPeriods)
-		data, err := json.Marshal(period)
+		data, err := proto.Marshal(period.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal period: %w", err)
 		}
@@ -280,7 +277,7 @@ func (s *Storage) SavePeriod(period *Period) error {
 
 // GetPeriod retrieves a period by ID
 func (s *Storage) GetPeriod(id string) (*Period, error) {
-	var period Period
+	var period *Period
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketPeriods)
@@ -288,20 +285,25 @@ func (s *Storage) GetPeriod(id string) (*Period, error) {
 		if data == nil {
 			return fmt.Errorf("period not found: %s", id)
 		}
-		return json.Unmarshal(data, &period)
+		pbPeriod := &pb.Period{}
+		if err := proto.Unmarshal(data, pbPeriod); err != nil {
+			return fmt.Errorf("failed to unmarshal period: %w", err)
+		}
+		period = PeriodFromProto(pbPeriod)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &period, nil
+	return period, nil
 }
 
 // SaveReconciliation saves a reconciliation to storage
 func (s *Storage) SaveReconciliation(recon *Reconciliation) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketReconciliations)
-		data, err := json.Marshal(recon)
+		data, err := proto.Marshal(recon.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal reconciliation: %w", err)
 		}
@@ -313,7 +315,7 @@ func (s *Storage) SaveReconciliation(recon *Reconciliation) error {
 func (s *Storage) SaveSchedule(schedule *RecognitionSchedule) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketSchedules)
-		data, err := json.Marshal(schedule)
+		data, err := proto.Marshal(schedule.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal schedule: %w", err)
 		}
@@ -330,11 +332,12 @@ func (s *Storage) GetAllSchedules() ([]*RecognitionSchedule, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var schedule RecognitionSchedule
-			if err := json.Unmarshal(v, &schedule); err != nil {
+			pbSchedule := &pb.RecognitionSchedule{}
+			if err := proto.Unmarshal(v, pbSchedule); err != nil {
 				return fmt.Errorf("failed to unmarshal schedule: %w", err)
 			}
-			schedules = append(schedules, &schedule)
+			schedule := RecognitionScheduleFromProto(pbSchedule)
+			schedules = append(schedules, schedule)
 		}
 		return nil
 	})
@@ -346,7 +349,7 @@ func (s *Storage) GetAllSchedules() ([]*RecognitionSchedule, error) {
 func (s *Storage) SaveCompany(company *Company) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketCompanies)
-		data, err := json.Marshal(company)
+		data, err := proto.Marshal(company.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal company: %w", err)
 		}
@@ -356,7 +359,7 @@ func (s *Storage) SaveCompany(company *Company) error {
 
 // GetCompany retrieves a company by ID
 func (s *Storage) GetCompany(id string) (*Company, error) {
-	var company Company
+	var company *Company
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketCompanies)
@@ -364,13 +367,18 @@ func (s *Storage) GetCompany(id string) (*Company, error) {
 		if data == nil {
 			return fmt.Errorf("company not found: %s", id)
 		}
-		return json.Unmarshal(data, &company)
+		pbCompany := &pb.Company{}
+		if err := proto.Unmarshal(data, pbCompany); err != nil {
+			return fmt.Errorf("failed to unmarshal company: %w", err)
+		}
+		company = CompanyFromProto(pbCompany)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &company, nil
+	return company, nil
 }
 
 // GetCompanies retrieves all companies
@@ -382,11 +390,12 @@ func (s *Storage) GetCompanies() ([]*Company, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var company Company
-			if err := json.Unmarshal(v, &company); err != nil {
+			pbCompany := &pb.Company{}
+			if err := proto.Unmarshal(v, pbCompany); err != nil {
 				return fmt.Errorf("failed to unmarshal company: %w", err)
 			}
-			companies = append(companies, &company)
+			company := CompanyFromProto(pbCompany)
+			companies = append(companies, company)
 		}
 		return nil
 	})
@@ -398,7 +407,7 @@ func (s *Storage) GetCompanies() ([]*Company, error) {
 func (s *Storage) SaveIntercompanyTransaction(txn *IntercompanyTransaction) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketIntercompanyTransactions)
-		data, err := json.Marshal(txn)
+		data, err := proto.Marshal(txn.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal intercompany transaction: %w", err)
 		}
@@ -408,7 +417,7 @@ func (s *Storage) SaveIntercompanyTransaction(txn *IntercompanyTransaction) erro
 
 // GetIntercompanyTransaction retrieves an intercompany transaction by ID
 func (s *Storage) GetIntercompanyTransaction(id string) (*IntercompanyTransaction, error) {
-	var txn IntercompanyTransaction
+	var txn *IntercompanyTransaction
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketIntercompanyTransactions)
@@ -416,13 +425,18 @@ func (s *Storage) GetIntercompanyTransaction(id string) (*IntercompanyTransactio
 		if data == nil {
 			return fmt.Errorf("intercompany transaction not found: %s", id)
 		}
-		return json.Unmarshal(data, &txn)
+		pbTxn := &pb.IntercompanyTransaction{}
+		if err := proto.Unmarshal(data, pbTxn); err != nil {
+			return fmt.Errorf("failed to unmarshal intercompany transaction: %w", err)
+		}
+		txn = IntercompanyTransactionFromProto(pbTxn)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &txn, nil
+	return txn, nil
 }
 
 // GetIntercompanyTransactionsByCompany retrieves all intercompany transactions for a specific company
@@ -434,12 +448,13 @@ func (s *Storage) GetIntercompanyTransactionsByCompany(companyID string) ([]*Int
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var txn IntercompanyTransaction
-			if err := json.Unmarshal(v, &txn); err != nil {
+			pbTxn := &pb.IntercompanyTransaction{}
+			if err := proto.Unmarshal(v, pbTxn); err != nil {
 				return fmt.Errorf("failed to unmarshal intercompany transaction: %w", err)
 			}
+			txn := IntercompanyTransactionFromProto(pbTxn)
 			if txn.SourceCompanyID == companyID || txn.TargetCompanyID == companyID {
-				txns = append(txns, &txn)
+				txns = append(txns, txn)
 			}
 		}
 		return nil
@@ -452,7 +467,7 @@ func (s *Storage) GetIntercompanyTransactionsByCompany(companyID string) ([]*Int
 func (s *Storage) SaveConsolidationGroup(group *ConsolidationGroup) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketConsolidationGroups)
-		data, err := json.Marshal(group)
+		data, err := proto.Marshal(group.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal consolidation group: %w", err)
 		}
@@ -462,7 +477,7 @@ func (s *Storage) SaveConsolidationGroup(group *ConsolidationGroup) error {
 
 // GetConsolidationGroup retrieves a consolidation group by ID
 func (s *Storage) GetConsolidationGroup(id string) (*ConsolidationGroup, error) {
-	var group ConsolidationGroup
+	var group *ConsolidationGroup
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketConsolidationGroups)
@@ -470,13 +485,18 @@ func (s *Storage) GetConsolidationGroup(id string) (*ConsolidationGroup, error) 
 		if data == nil {
 			return fmt.Errorf("consolidation group not found: %s", id)
 		}
-		return json.Unmarshal(data, &group)
+		pbGroup := &pb.ConsolidationGroup{}
+		if err := proto.Unmarshal(data, pbGroup); err != nil {
+			return fmt.Errorf("failed to unmarshal consolidation group: %w", err)
+		}
+		group = ConsolidationGroupFromProto(pbGroup)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &group, nil
+	return group, nil
 }
 
 // GetConsolidationGroups retrieves all consolidation groups
@@ -488,11 +508,12 @@ func (s *Storage) GetConsolidationGroups() ([]*ConsolidationGroup, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var group ConsolidationGroup
-			if err := json.Unmarshal(v, &group); err != nil {
+			pbGroup := &pb.ConsolidationGroup{}
+			if err := proto.Unmarshal(v, pbGroup); err != nil {
 				return fmt.Errorf("failed to unmarshal consolidation group: %w", err)
 			}
-			groups = append(groups, &group)
+			group := ConsolidationGroupFromProto(pbGroup)
+			groups = append(groups, group)
 		}
 		return nil
 	})
@@ -506,7 +527,7 @@ func (s *Storage) GetConsolidationGroups() ([]*ConsolidationGroup, error) {
 
 // SaveBudgetPeriod saves a budget period
 func (s *Storage) SaveBudgetPeriod(period *BudgetPeriod) error {
-	data, err := json.Marshal(period)
+	data, err := proto.Marshal(period.ToProto())
 	if err != nil {
 		return fmt.Errorf("failed to marshal budget period: %w", err)
 	}
@@ -519,7 +540,7 @@ func (s *Storage) SaveBudgetPeriod(period *BudgetPeriod) error {
 
 // GetBudgetPeriod retrieves a budget period by ID
 func (s *Storage) GetBudgetPeriod(id string) (*BudgetPeriod, error) {
-	var period BudgetPeriod
+	var period *BudgetPeriod
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketBudgetPeriods)
@@ -527,15 +548,20 @@ func (s *Storage) GetBudgetPeriod(id string) (*BudgetPeriod, error) {
 		if data == nil {
 			return fmt.Errorf("budget period not found")
 		}
-		return json.Unmarshal(data, &period)
+		pbPeriod := &pb.BudgetPeriod{}
+		if err := proto.Unmarshal(data, pbPeriod); err != nil {
+			return fmt.Errorf("failed to unmarshal budget period: %w", err)
+		}
+		period = BudgetPeriodFromProto(pbPeriod)
+		return nil
 	})
 
-	return &period, err
+	return period, err
 }
 
 // SaveBudgetRequest saves a budget request
 func (s *Storage) SaveBudgetRequest(request *BudgetRequest) error {
-	data, err := json.Marshal(request)
+	data, err := proto.Marshal(request.ToProto())
 	if err != nil {
 		return fmt.Errorf("failed to marshal budget request: %w", err)
 	}
@@ -548,7 +574,7 @@ func (s *Storage) SaveBudgetRequest(request *BudgetRequest) error {
 
 // GetBudgetRequest retrieves a budget request by ID
 func (s *Storage) GetBudgetRequest(id string) (*BudgetRequest, error) {
-	var request BudgetRequest
+	var request *BudgetRequest
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketBudgetRequests)
@@ -556,10 +582,15 @@ func (s *Storage) GetBudgetRequest(id string) (*BudgetRequest, error) {
 		if data == nil {
 			return fmt.Errorf("budget request not found")
 		}
-		return json.Unmarshal(data, &request)
+		pbRequest := &pb.BudgetRequest{}
+		if err := proto.Unmarshal(data, pbRequest); err != nil {
+			return fmt.Errorf("failed to unmarshal budget request: %w", err)
+		}
+		request = BudgetRequestFromProto(pbRequest)
+		return nil
 	})
 
-	return &request, err
+	return request, err
 }
 
 // GetBudgetRequestsByPeriodAndDept retrieves budget requests by period and department
@@ -571,13 +602,14 @@ func (s *Storage) GetBudgetRequestsByPeriodAndDept(periodID, departmentID string
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var request BudgetRequest
-			if err := json.Unmarshal(v, &request); err != nil {
+			pbRequest := &pb.BudgetRequest{}
+			if err := proto.Unmarshal(v, pbRequest); err != nil {
 				continue // Skip malformed requests
 			}
+			request := BudgetRequestFromProto(pbRequest)
 
 			if request.PeriodID == periodID && request.DepartmentID == departmentID {
-				requests = append(requests, &request)
+				requests = append(requests, request)
 			}
 		}
 		return nil
@@ -588,7 +620,7 @@ func (s *Storage) GetBudgetRequestsByPeriodAndDept(periodID, departmentID string
 
 // SaveBudgetApproval saves a budget approval
 func (s *Storage) SaveBudgetApproval(approval *BudgetApproval) error {
-	data, err := json.Marshal(approval)
+	data, err := proto.Marshal(approval.ToProto())
 	if err != nil {
 		return fmt.Errorf("failed to marshal budget approval: %w", err)
 	}
@@ -608,13 +640,14 @@ func (s *Storage) GetBudgetApprovalsByRequest(requestID string) ([]*BudgetApprov
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var approval BudgetApproval
-			if err := json.Unmarshal(v, &approval); err != nil {
+			pbApproval := &pb.BudgetApproval{}
+			if err := proto.Unmarshal(v, pbApproval); err != nil {
 				continue // Skip malformed approvals
 			}
+			approval := BudgetApprovalFromProto(pbApproval)
 
 			if approval.RequestID == requestID {
-				approvals = append(approvals, &approval)
+				approvals = append(approvals, approval)
 			}
 		}
 		return nil
@@ -625,7 +658,7 @@ func (s *Storage) GetBudgetApprovalsByRequest(requestID string) ([]*BudgetApprov
 
 // SaveBudgetAllocation saves a budget allocation
 func (s *Storage) SaveBudgetAllocation(allocation *BudgetAllocation) error {
-	data, err := json.Marshal(allocation)
+	data, err := proto.Marshal(allocation.ToProto())
 	if err != nil {
 		return fmt.Errorf("failed to marshal budget allocation: %w", err)
 	}
@@ -638,7 +671,7 @@ func (s *Storage) SaveBudgetAllocation(allocation *BudgetAllocation) error {
 
 // GetBudgetAllocation retrieves a budget allocation by ID
 func (s *Storage) GetBudgetAllocation(id string) (*BudgetAllocation, error) {
-	var allocation BudgetAllocation
+	var allocation *BudgetAllocation
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketBudgetAllocations)
@@ -646,10 +679,15 @@ func (s *Storage) GetBudgetAllocation(id string) (*BudgetAllocation, error) {
 		if data == nil {
 			return fmt.Errorf("budget allocation not found")
 		}
-		return json.Unmarshal(data, &allocation)
+		pbAllocation := &pb.BudgetAllocation{}
+		if err := proto.Unmarshal(data, pbAllocation); err != nil {
+			return fmt.Errorf("failed to unmarshal budget allocation: %w", err)
+		}
+		allocation = BudgetAllocationFromProto(pbAllocation)
+		return nil
 	})
 
-	return &allocation, err
+	return allocation, err
 }
 
 // GetBudgetAllocationsByPeriodAndDept retrieves budget allocations by period and department
@@ -661,13 +699,14 @@ func (s *Storage) GetBudgetAllocationsByPeriodAndDept(periodID, departmentID str
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var allocation BudgetAllocation
-			if err := json.Unmarshal(v, &allocation); err != nil {
+			pbAllocation := &pb.BudgetAllocation{}
+			if err := proto.Unmarshal(v, pbAllocation); err != nil {
 				continue // Skip malformed allocations
 			}
+			allocation := BudgetAllocationFromProto(pbAllocation)
 
 			if allocation.PeriodID == periodID && allocation.DepartmentID == departmentID {
-				allocations = append(allocations, &allocation)
+				allocations = append(allocations, allocation)
 			}
 		}
 		return nil
@@ -678,7 +717,7 @@ func (s *Storage) GetBudgetAllocationsByPeriodAndDept(periodID, departmentID str
 
 // SaveBudgetTracking saves budget tracking record
 func (s *Storage) SaveBudgetTracking(tracking *BudgetTracking) error {
-	data, err := json.Marshal(tracking)
+	data, err := proto.Marshal(tracking.ToProto())
 	if err != nil {
 		return fmt.Errorf("failed to marshal budget tracking: %w", err)
 	}
@@ -695,7 +734,7 @@ func (s *Storage) SaveBudgetTracking(tracking *BudgetTracking) error {
 func (s *Storage) SaveComplianceRule(rule *ComplianceRule) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketComplianceRules)
-		data, err := json.Marshal(rule)
+		data, err := proto.Marshal(rule.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal compliance rule: %w", err)
 		}
@@ -705,7 +744,7 @@ func (s *Storage) SaveComplianceRule(rule *ComplianceRule) error {
 
 // GetComplianceRule retrieves a compliance rule by ID
 func (s *Storage) GetComplianceRule(id string) (*ComplianceRule, error) {
-	var rule ComplianceRule
+	var rule *ComplianceRule
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketComplianceRules)
@@ -713,13 +752,18 @@ func (s *Storage) GetComplianceRule(id string) (*ComplianceRule, error) {
 		if data == nil {
 			return fmt.Errorf("compliance rule not found: %s", id)
 		}
-		return json.Unmarshal(data, &rule)
+		pbRule := &pb.ComplianceRule{}
+		if err := proto.Unmarshal(data, pbRule); err != nil {
+			return fmt.Errorf("failed to unmarshal compliance rule: %w", err)
+		}
+		rule = ComplianceRuleFromProto(pbRule)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &rule, nil
+	return rule, nil
 }
 
 // GetAllComplianceRules retrieves all compliance rules
@@ -731,11 +775,12 @@ func (s *Storage) GetAllComplianceRules() ([]*ComplianceRule, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var rule ComplianceRule
-			if err := json.Unmarshal(v, &rule); err != nil {
+			pbRule := &pb.ComplianceRule{}
+			if err := proto.Unmarshal(v, pbRule); err != nil {
 				return fmt.Errorf("failed to unmarshal compliance rule: %w", err)
 			}
-			rules = append(rules, &rule)
+			rule := ComplianceRuleFromProto(pbRule)
+			rules = append(rules, rule)
 		}
 		return nil
 	})
@@ -747,7 +792,7 @@ func (s *Storage) GetAllComplianceRules() ([]*ComplianceRule, error) {
 func (s *Storage) SaveTaxRule(rule *TaxRule) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketTaxRules)
-		data, err := json.Marshal(rule)
+		data, err := proto.Marshal(rule.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal tax rule: %w", err)
 		}
@@ -757,7 +802,7 @@ func (s *Storage) SaveTaxRule(rule *TaxRule) error {
 
 // GetTaxRule retrieves a tax rule by ID
 func (s *Storage) GetTaxRule(id string) (*TaxRule, error) {
-	var rule TaxRule
+	var rule *TaxRule
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketTaxRules)
@@ -765,13 +810,18 @@ func (s *Storage) GetTaxRule(id string) (*TaxRule, error) {
 		if data == nil {
 			return fmt.Errorf("tax rule not found: %s", id)
 		}
-		return json.Unmarshal(data, &rule)
+		pbRule := &pb.TaxRule{}
+		if err := proto.Unmarshal(data, pbRule); err != nil {
+			return fmt.Errorf("failed to unmarshal tax rule: %w", err)
+		}
+		rule = TaxRuleFromProto(pbRule)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &rule, nil
+	return rule, nil
 }
 
 // GetAllTaxRules retrieves all tax rules
@@ -783,11 +833,12 @@ func (s *Storage) GetAllTaxRules() ([]*TaxRule, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var rule TaxRule
-			if err := json.Unmarshal(v, &rule); err != nil {
+			pbRule := &pb.TaxRule{}
+			if err := proto.Unmarshal(v, pbRule); err != nil {
 				return fmt.Errorf("failed to unmarshal tax rule: %w", err)
 			}
-			rules = append(rules, &rule)
+			rule := TaxRuleFromProto(pbRule)
+			rules = append(rules, rule)
 		}
 		return nil
 	})
@@ -799,7 +850,7 @@ func (s *Storage) GetAllTaxRules() ([]*TaxRule, error) {
 func (s *Storage) SaveComplianceViolation(violation *ComplianceViolation) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketComplianceViolations)
-		data, err := json.Marshal(violation)
+		data, err := proto.Marshal(violation.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal compliance violation: %w", err)
 		}
@@ -809,7 +860,7 @@ func (s *Storage) SaveComplianceViolation(violation *ComplianceViolation) error 
 
 // GetComplianceViolation retrieves a compliance violation by ID
 func (s *Storage) GetComplianceViolation(id string) (*ComplianceViolation, error) {
-	var violation ComplianceViolation
+	var violation *ComplianceViolation
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketComplianceViolations)
@@ -817,13 +868,18 @@ func (s *Storage) GetComplianceViolation(id string) (*ComplianceViolation, error
 		if data == nil {
 			return fmt.Errorf("compliance violation not found: %s", id)
 		}
-		return json.Unmarshal(data, &violation)
+		pbViolation := &pb.ComplianceViolation{}
+		if err := proto.Unmarshal(data, pbViolation); err != nil {
+			return fmt.Errorf("failed to unmarshal compliance violation: %w", err)
+		}
+		violation = ComplianceViolationFromProto(pbViolation)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &violation, nil
+	return violation, nil
 }
 
 // GetAllComplianceViolations retrieves all compliance violations
@@ -835,11 +891,12 @@ func (s *Storage) GetAllComplianceViolations() ([]*ComplianceViolation, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var violation ComplianceViolation
-			if err := json.Unmarshal(v, &violation); err != nil {
+			pbViolation := &pb.ComplianceViolation{}
+			if err := proto.Unmarshal(v, pbViolation); err != nil {
 				return fmt.Errorf("failed to unmarshal compliance violation: %w", err)
 			}
-			violations = append(violations, &violation)
+			violation := ComplianceViolationFromProto(pbViolation)
+			violations = append(violations, violation)
 		}
 		return nil
 	})
@@ -851,7 +908,7 @@ func (s *Storage) GetAllComplianceViolations() ([]*ComplianceViolation, error) {
 func (s *Storage) SaveTaxReturn(taxReturn *TaxReturn) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketTaxReturns)
-		data, err := json.Marshal(taxReturn)
+		data, err := proto.Marshal(taxReturn.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal tax return: %w", err)
 		}
@@ -861,7 +918,7 @@ func (s *Storage) SaveTaxReturn(taxReturn *TaxReturn) error {
 
 // GetTaxReturn retrieves a tax return by ID
 func (s *Storage) GetTaxReturn(id string) (*TaxReturn, error) {
-	var taxReturn TaxReturn
+	var taxReturn *TaxReturn
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketTaxReturns)
@@ -869,13 +926,18 @@ func (s *Storage) GetTaxReturn(id string) (*TaxReturn, error) {
 		if data == nil {
 			return fmt.Errorf("tax return not found: %s", id)
 		}
-		return json.Unmarshal(data, &taxReturn)
+		pbTaxReturn := &pb.TaxReturn{}
+		if err := proto.Unmarshal(data, pbTaxReturn); err != nil {
+			return fmt.Errorf("failed to unmarshal tax return: %w", err)
+		}
+		taxReturn = TaxReturnFromProto(pbTaxReturn)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &taxReturn, nil
+	return taxReturn, nil
 }
 
 // GetAllTaxReturns retrieves all tax returns
@@ -887,11 +949,12 @@ func (s *Storage) GetAllTaxReturns() ([]*TaxReturn, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var taxReturn TaxReturn
-			if err := json.Unmarshal(v, &taxReturn); err != nil {
+			pbTaxReturn := &pb.TaxReturn{}
+			if err := proto.Unmarshal(v, pbTaxReturn); err != nil {
 				return fmt.Errorf("failed to unmarshal tax return: %w", err)
 			}
-			taxReturns = append(taxReturns, &taxReturn)
+			taxReturn := TaxReturnFromProto(pbTaxReturn)
+			taxReturns = append(taxReturns, taxReturn)
 		}
 		return nil
 	})
@@ -908,14 +971,15 @@ func (s *Storage) GetTaxRulesByJurisdiction(jurisdiction TaxJurisdiction, taxTyp
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var rule TaxRule
-			if err := json.Unmarshal(v, &rule); err != nil {
+			pbRule := &pb.TaxRule{}
+			if err := proto.Unmarshal(v, pbRule); err != nil {
 				return fmt.Errorf("failed to unmarshal tax rule: %w", err)
 			}
+			rule := TaxRuleFromProto(pbRule)
 
 			// Filter by jurisdiction and tax type
 			if rule.Jurisdiction == jurisdiction && rule.TaxType == taxType {
-				rules = append(rules, &rule)
+				rules = append(rules, rule)
 			}
 		}
 		return nil
@@ -933,17 +997,18 @@ func (s *Storage) GetTransactionsByDateRange(companyID string, startDate, endDat
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var txn Transaction
-			if err := json.Unmarshal(v, &txn); err != nil {
+			pbTxn := &pb.Transaction{}
+			if err := proto.Unmarshal(v, pbTxn); err != nil {
 				continue // Skip malformed transactions
 			}
+			txn := TransactionFromProto(pbTxn)
 
 			// Filter by company and date range
 			// Note: In a real implementation, we'd need a company field on Transaction
 			// For now, we'll just filter by date
 			if txn.ValidTime.After(startDate) || txn.ValidTime.Equal(startDate) {
 				if txn.ValidTime.Before(endDate) || txn.ValidTime.Equal(endDate) {
-					transactions = append(transactions, &txn)
+					transactions = append(transactions, txn)
 				}
 			}
 		}
@@ -962,11 +1027,12 @@ func (s *Storage) GetComplianceViolations(companyID string) ([]ComplianceViolati
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var violation ComplianceViolation
-			if err := json.Unmarshal(v, &violation); err != nil {
+			pbViolation := &pb.ComplianceViolation{}
+			if err := proto.Unmarshal(v, pbViolation); err != nil {
 				return fmt.Errorf("failed to unmarshal compliance violation: %w", err)
 			}
-			violations = append(violations, violation)
+			violation := ComplianceViolationFromProto(pbViolation)
+			violations = append(violations, *violation)
 		}
 		return nil
 	})
@@ -983,10 +1049,11 @@ func (s *Storage) QueryEntries(options *QueryOptions) ([]*Entry, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var entry Entry
-			if err := json.Unmarshal(v, &entry); err != nil {
+			pbEntry := &pb.Entry{}
+			if err := proto.Unmarshal(v, pbEntry); err != nil {
 				continue // Skip malformed entries
 			}
+			entry := EntryFromProto(pbEntry)
 
 			// Apply filters
 			matches := true
@@ -1010,7 +1077,7 @@ func (s *Storage) QueryEntries(options *QueryOptions) ([]*Entry, error) {
 			}
 
 			if matches {
-				entries = append(entries, &entry)
+				entries = append(entries, entry)
 			}
 		}
 		return nil
@@ -1032,7 +1099,7 @@ func (s *Storage) QueryEntries(options *QueryOptions) ([]*Entry, error) {
 func (s *Storage) SaveAMLRule(rule *AMLRule) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketAMLRules)
-		data, err := json.Marshal(rule)
+		data, err := proto.Marshal(rule.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal AML rule: %w", err)
 		}
@@ -1042,7 +1109,7 @@ func (s *Storage) SaveAMLRule(rule *AMLRule) error {
 
 // GetAMLRule retrieves an AML rule by ID
 func (s *Storage) GetAMLRule(id string) (*AMLRule, error) {
-	var rule AMLRule
+	var rule *AMLRule
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketAMLRules)
@@ -1050,13 +1117,18 @@ func (s *Storage) GetAMLRule(id string) (*AMLRule, error) {
 		if data == nil {
 			return fmt.Errorf("AML rule not found: %s", id)
 		}
-		return json.Unmarshal(data, &rule)
+		pbRule := &pb.AMLRule{}
+		if err := proto.Unmarshal(data, pbRule); err != nil {
+			return fmt.Errorf("failed to unmarshal AML rule: %w", err)
+		}
+		rule = AMLRuleFromProto(pbRule)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &rule, nil
+	return rule, nil
 }
 
 // GetAllAMLRules retrieves all AML rules
@@ -1068,11 +1140,12 @@ func (s *Storage) GetAllAMLRules() ([]*AMLRule, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var rule AMLRule
-			if err := json.Unmarshal(v, &rule); err != nil {
+			pbRule := &pb.AMLRule{}
+			if err := proto.Unmarshal(v, pbRule); err != nil {
 				return fmt.Errorf("failed to unmarshal AML rule: %w", err)
 			}
-			rules = append(rules, &rule)
+			rule := AMLRuleFromProto(pbRule)
+			rules = append(rules, rule)
 		}
 		return nil
 	})
@@ -1084,7 +1157,7 @@ func (s *Storage) GetAllAMLRules() ([]*AMLRule, error) {
 func (s *Storage) SaveAMLAlert(alert *AMLAlert) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketAMLAlerts)
-		data, err := json.Marshal(alert)
+		data, err := proto.Marshal(alert.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal AML alert: %w", err)
 		}
@@ -1094,7 +1167,7 @@ func (s *Storage) SaveAMLAlert(alert *AMLAlert) error {
 
 // GetAMLAlert retrieves an AML alert by ID
 func (s *Storage) GetAMLAlert(id string) (*AMLAlert, error) {
-	var alert AMLAlert
+	var alert *AMLAlert
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketAMLAlerts)
@@ -1102,13 +1175,18 @@ func (s *Storage) GetAMLAlert(id string) (*AMLAlert, error) {
 		if data == nil {
 			return fmt.Errorf("AML alert not found: %s", id)
 		}
-		return json.Unmarshal(data, &alert)
+		pbAlert := &pb.AMLAlert{}
+		if err := proto.Unmarshal(data, pbAlert); err != nil {
+			return fmt.Errorf("failed to unmarshal AML alert: %w", err)
+		}
+		alert = AMLAlertFromProto(pbAlert)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &alert, nil
+	return alert, nil
 }
 
 // GetAMLAlerts retrieves all AML alerts
@@ -1120,11 +1198,12 @@ func (s *Storage) GetAMLAlerts() ([]*AMLAlert, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var alert AMLAlert
-			if err := json.Unmarshal(v, &alert); err != nil {
+			pbAlert := &pb.AMLAlert{}
+			if err := proto.Unmarshal(v, pbAlert); err != nil {
 				return fmt.Errorf("failed to unmarshal AML alert: %w", err)
 			}
-			alerts = append(alerts, &alert)
+			alert := AMLAlertFromProto(pbAlert)
+			alerts = append(alerts, alert)
 		}
 		return nil
 	})
@@ -1136,7 +1215,7 @@ func (s *Storage) GetAMLAlerts() ([]*AMLAlert, error) {
 func (s *Storage) SaveAMLCustomer(customer *AMLCustomer) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketAMLCustomers)
-		data, err := json.Marshal(customer)
+		data, err := proto.Marshal(customer.ToProto())
 		if err != nil {
 			return fmt.Errorf("failed to marshal AML customer: %w", err)
 		}
@@ -1146,7 +1225,7 @@ func (s *Storage) SaveAMLCustomer(customer *AMLCustomer) error {
 
 // GetAMLCustomer retrieves an AML customer by ID
 func (s *Storage) GetAMLCustomer(id string) (*AMLCustomer, error) {
-	var customer AMLCustomer
+	var customer *AMLCustomer
 
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(BucketAMLCustomers)
@@ -1154,13 +1233,18 @@ func (s *Storage) GetAMLCustomer(id string) (*AMLCustomer, error) {
 		if data == nil {
 			return fmt.Errorf("AML customer not found: %s", id)
 		}
-		return json.Unmarshal(data, &customer)
+		pbCustomer := &pb.AMLCustomer{}
+		if err := proto.Unmarshal(data, pbCustomer); err != nil {
+			return fmt.Errorf("failed to unmarshal AML customer: %w", err)
+		}
+		customer = AMLCustomerFromProto(pbCustomer)
+		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
-	return &customer, nil
+	return customer, nil
 }
 
 // GetAllAMLCustomers retrieves all AML customers
@@ -1172,11 +1256,12 @@ func (s *Storage) GetAllAMLCustomers() ([]*AMLCustomer, error) {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var customer AMLCustomer
-			if err := json.Unmarshal(v, &customer); err != nil {
+			pbCustomer := &pb.AMLCustomer{}
+			if err := proto.Unmarshal(v, pbCustomer); err != nil {
 				return fmt.Errorf("failed to unmarshal AML customer: %w", err)
 			}
-			customers = append(customers, &customer)
+			customer := AMLCustomerFromProto(pbCustomer)
+			customers = append(customers, customer)
 		}
 		return nil
 	})
