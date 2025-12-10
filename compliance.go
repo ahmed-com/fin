@@ -434,7 +434,7 @@ func (cs *ComplianceService) CalculateTaxReturn(companyID string, jurisdiction T
 }
 
 // GetComplianceViolations retrieves compliance violations
-func (cs *ComplianceService) GetComplianceViolations(companyID string) ([]ComplianceViolation, error) {
+func (cs *ComplianceService) GetComplianceViolations(companyID string) ([]*ComplianceViolation, error) {
 	return cs.storage.GetComplianceViolations(companyID)
 }
 
