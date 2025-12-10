@@ -1,0 +1,220 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// BudgetPeriodStatus enum
+enum BudgetPeriodStatus {
+  BUDGET_PERIOD_STATUS_UNSPECIFIED = 0;
+  BUDGET_PERIOD_STATUS_DRAFT = 1;
+  BUDGET_PERIOD_STATUS_OPEN = 2;
+  BUDGET_PERIOD_STATUS_SUBMITTED = 3;
+  BUDGET_PERIOD_STATUS_APPROVED = 4;
+  BUDGET_PERIOD_STATUS_LOCKED = 5;
+}
+
+// BudgetPeriod
+message BudgetPeriod {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
+  BudgetPeriodStatus status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  string created_by = 7;
+}
+
+// BudgetRequestStatus enum
+enum BudgetRequestStatus {
+  BUDGET_REQUEST_STATUS_UNSPECIFIED = 0;
+  BUDGET_REQUEST_STATUS_DRAFT = 1;
+  BUDGET_REQUEST_STATUS_SUBMITTED = 2;
+  BUDGET_REQUEST_STATUS_UNDER_REVIEW = 3;
+  BUDGET_REQUEST_STATUS_APPROVED = 4;
+  BUDGET_REQUEST_STATUS_REJECTED = 5;
+  BUDGET_REQUEST_STATUS_REVISION_REQUIRED = 6;
+}
+
+// Priority enum
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_CRITICAL = 1;
+  PRIORITY_HIGH = 2;
+  PRIORITY_MEDIUM = 3;
+  PRIORITY_LOW = 4;
+}
+
+// BudgetLineItem
+message BudgetLineItem {
+  string id = 1;
+  string account_id = 2;
+  string account_name = 3;
+  Amount amount = 4;
+  string description = 5;
+  Priority priority = 6;
+  bool recurring = 7;
+  string frequency = 8;
+  string vendor = 9;
+  repeated Dimension dimensions = 10;
+  string justification = 11;
+}
+
+// JustificationCategory enum
+enum JustificationCategory {
+  JUSTIFICATION_CATEGORY_UNSPECIFIED = 0;
+  JUSTIFICATION_CATEGORY_OPERATIONAL = 1;
+  JUSTIFICATION_CATEGORY_STRATEGIC = 2;
+  JUSTIFICATION_CATEGORY_COMPLIANCE = 3;
+  JUSTIFICATION_CATEGORY_GROWTH = 4;
+  JUSTIFICATION_CATEGORY_MAINTENANCE = 5;
+}
+
+// Alternative
+message Alternative {
+  string description = 1;
+  Amount cost = 2;
+  repeated string pros = 3;
+  repeated string cons = 4;
+}
+
+// JustificationMetric
+message JustificationMetric {
+  string name = 1;
+  double value = 2;
+  string unit = 3;
+  string timeframe = 4;
+  string measurement = 5;
+}
+
+// Justification
+message Justification {
+  string id = 1;
+  JustificationCategory category = 2;
+  string title = 3;
+  string description = 4;
+  string business_case = 5;
+  string expected_outcome = 6;
+  string risk_of_not_funding = 7;
+  repeated Alternative alternatives = 8;
+  repeated JustificationMetric metrics = 9;
+  repeated string supporting_docs = 10;
+  google.protobuf.Timestamp created_at = 11;
+  string created_by = 12;
+}
+
+// BudgetRequest
+message BudgetRequest {
+  string id = 1;
+  string period_id = 2;
+  string requestor_id = 3;
+  string department_id = 4;
+  string title = 5;
+  string description = 6;
+  Amount total_amount = 7;
+  BudgetRequestStatus status = 8;
+  repeated BudgetLineItem line_items = 9;
+  repeated Justification justifications = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp submitted_at = 13;
+  google.protobuf.Timestamp approved_at = 14;
+  string approved_by = 15;
+}
+
+// ApprovalStatus enum
+enum ApprovalStatus {
+  APPROVAL_STATUS_UNSPECIFIED = 0;
+  APPROVAL_STATUS_PENDING = 1;
+  APPROVAL_STATUS_APPROVED = 2;
+  APPROVAL_STATUS_REJECTED = 3;
+  APPROVAL_STATUS_SKIPPED = 4;
+}
+
+// BudgetApproval
+message BudgetApproval {
+  string id = 1;
+  string request_id = 2;
+  string approver_id = 3;
+  int32 approver_level = 4;
+  ApprovalStatus status = 5;
+  Amount approved_amount = 6;
+  string comments = 7;
+  google.protobuf.Timestamp approved_at = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// BudgetAllocation
+message BudgetAllocation {
+  string id = 1;
+  string period_id = 2;
+  string request_id = 3;
+  string department_id = 4;
+  string account_id = 5;
+  Amount amount = 6;
+  Amount spent_amount = 7;
+  Amount remaining = 8;
+  string description = 9;
+  repeated Dimension dimensions = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+// BudgetTracking
+message BudgetTracking {
+  string allocation_id = 1;
+  string transaction_id = 2;
+  Amount amount = 3;
+  string description = 4;
+  google.protobuf.Timestamp tracked_at = 5;
+  Amount remaining_budget = 6;
+}
+
+// BudgetVarianceItem
+message BudgetVarianceItem {
+  string account_id = 1;
+  string description = 2;
+  Amount budget_amount = 3;
+  Amount spent_amount = 4;
+  Amount variance = 5;
+  double variance_percent = 6;
+}
+
+// BudgetVarianceReport
+message BudgetVarianceReport {
+  string period_id = 1;
+  string department_id = 2;
+  Amount total_budget = 3;
+  Amount total_spent = 4;
+  Amount total_variance = 5;
+  double total_variance_percent = 6;
+  repeated BudgetVarianceItem items = 7;
+  google.protobuf.Timestamp generated_at = 8;
+}
+
+// BudgetRequestSummary
+message BudgetRequestSummary {
+  string id = 1;
+  string title = 2;
+  BudgetRequestStatus status = 3;
+  Amount requested_amount = 4;
+  Amount approved_amount = 5;
+  int32 line_item_count = 6;
+  int32 justification_count = 7;
+  google.protobuf.Timestamp submitted_at = 8;
+  google.protobuf.Timestamp approved_at = 9;
+}
+
+// DepartmentBudgetSummary
+message DepartmentBudgetSummary {
+  string period_id = 1;
+  string department_id = 2;
+  Amount total_requested = 3;
+  Amount total_approved = 4;
+  map<string, int32> status_counts = 5;
+  repeated BudgetRequestSummary requests = 6;
+  google.protobuf.Timestamp generated_at = 7;
+}

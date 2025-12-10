@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+
+// Currency is an ISO-4217 code (e.g., "USD", "EGP")
+message Currency {
+  string code = 1;
+}
+
+// DimensionKey represents different dimension types
+enum DimensionKeyEnum {
+  DIMENSION_KEY_UNSPECIFIED = 0;
+  DIMENSION_KEY_DEPARTMENT = 1;
+  DIMENSION_KEY_PRODUCT = 2;
+  DIMENSION_KEY_PROJECT = 3;
+  DIMENSION_KEY_REGION = 4;
+  DIMENSION_KEY_COST_CENTER = 5;
+}
+
+// Dimension is an arbitrary key/value tag for OLAP-style analytics
+message Dimension {
+  string key = 1;
+  string value = 2;
+}
+
+// Amount represents monetary values with multi-currency support
+message Amount {
+  int64 value = 1;
+  string currency = 2;
+  int64 base_value = 3;
+  string base_currency = 4;
+  double exchange_rate = 5;
+  google.protobuf.Timestamp exchange_rate_date = 6;
+}
+
+// AccountType enum
+enum AccountType {
+  ACCOUNT_TYPE_UNSPECIFIED = 0;
+  ACCOUNT_TYPE_ASSET = 1;
+  ACCOUNT_TYPE_LIABILITY = 2;
+  ACCOUNT_TYPE_EQUITY = 3;
+  ACCOUNT_TYPE_INCOME = 4;
+  ACCOUNT_TYPE_EXPENSE = 5;
+}
+
+// Account is a node in a tree-structured Chart of Accounts
+message Account {
+  string id = 1;
+  string parent_id = 2;
+  string code = 3;
+  string name = 4;
+  AccountType type = 5;
+  repeated Dimension dimensions = 6;
+  string currency = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp closed_at = 9;
+}
+
+// EntryType enum
+enum EntryType {
+  ENTRY_TYPE_UNSPECIFIED = 0;
+  ENTRY_TYPE_DEBIT = 1;
+  ENTRY_TYPE_CREDIT = 2;
+}
+
+// Entry is a single debit or credit line
+message Entry {
+  string id = 1;
+  string transaction_id = 2;
+  string account_id = 3;
+  EntryType type = 4;
+  Amount amount = 5;
+  repeated Dimension dimensions = 6;
+}
+
+// TransactionStatus enum
+enum TransactionStatus {
+  TRANSACTION_STATUS_UNSPECIFIED = 0;
+  TRANSACTION_STATUS_PENDING = 1;
+  TRANSACTION_STATUS_POSTED = 2;
+  TRANSACTION_STATUS_REVERSED = 3;
+  TRANSACTION_STATUS_IN_BATCH = 4;
+}
+
+// Transaction with bi-temporal coordinates
+message Transaction {
+  string id = 1;
+  string description = 2;
+  google.protobuf.Timestamp valid_time = 3;
+  google.protobuf.Timestamp transaction_time = 4;
+  TransactionStatus status = 5;
+  repeated Entry entries = 6;
+  string source_ref = 7;
+  string user_id = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// Period represents an accounting period
+message Period {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp start = 3;
+  google.protobuf.Timestamp end = 4;
+  google.protobuf.Timestamp soft_closed_at = 5;
+  google.protobuf.Timestamp hard_closed_at = 6;
+}
+
+// LedgerType enum
+enum LedgerType {
+  LEDGER_TYPE_UNSPECIFIED = 0;
+  LEDGER_TYPE_GL = 1;
+  LEDGER_TYPE_AR = 2;
+  LEDGER_TYPE_AP = 3;
+  LEDGER_TYPE_INV = 4;
+}
+
+// Ledger represents a ledger or sub-ledger
+message Ledger {
+  string id = 1;
+  string name = 2;
+  LedgerType type = 3;
+  string currency = 4;
+}
+
+// ReconciliationStatus enum
+enum ReconciliationStatus {
+  RECONCILIATION_STATUS_UNSPECIFIED = 0;
+  RECONCILIATION_STATUS_UNRECONCILED = 1;
+  RECONCILIATION_STATUS_RECONCILED = 2;
+  RECONCILIATION_STATUS_PARTIAL = 3;
+}
+
+// Reconciliation tracks reconciliation of entries
+message Reconciliation {
+  string id = 1;
+  string external_ref = 2;
+  repeated string entry_ids = 3;
+  ReconciliationStatus status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+}
+
+// ScheduleFrequency enum
+enum ScheduleFrequency {
+  SCHEDULE_FREQUENCY_UNSPECIFIED = 0;
+  SCHEDULE_FREQUENCY_MONTHLY = 1;
+  SCHEDULE_FREQUENCY_QUARTERLY = 2;
+  SCHEDULE_FREQUENCY_YEARLY = 3;
+}
+
+// RecognitionSchedule for accrual/deferral
+message RecognitionSchedule {
+  string id = 1;
+  string transaction_id = 2;
+  ScheduleFrequency frequency = 3;
+  int32 occurrences = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// ReportingStandard enum
+enum ReportingStandard {
+  REPORTING_STANDARD_UNSPECIFIED = 0;
+  REPORTING_STANDARD_GAAP = 1;
+  REPORTING_STANDARD_IFRS = 2;
+}
+
+// ReportingContext for compliance/reporting
+message ReportingContext {
+  string id = 1;
+  ReportingStandard standard = 2;
+  string currency = 3;
+  string period_id = 4;
+}
+
+// JournalEvent is the atomic, append-only log record
+message JournalEvent {
+  string id = 1;
+  string event_type = 2;
+  bytes payload = 3;
+  google.protobuf.Timestamp valid_time = 4;
+  google.protobuf.Timestamp transaction_time = 5;
+  string user_id = 6;
+}

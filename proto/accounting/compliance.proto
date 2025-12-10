@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// ComplianceFramework enum
+enum ComplianceFramework {
+  COMPLIANCE_FRAMEWORK_UNSPECIFIED = 0;
+  COMPLIANCE_FRAMEWORK_GAAP = 1;
+  COMPLIANCE_FRAMEWORK_IFRS = 2;
+  COMPLIANCE_FRAMEWORK_SOX = 3;
+}
+
+// TaxJurisdiction enum
+enum TaxJurisdiction {
+  TAX_JURISDICTION_UNSPECIFIED = 0;
+  TAX_JURISDICTION_US_FEDERAL = 1;
+  TAX_JURISDICTION_US_STATE = 2;
+  TAX_JURISDICTION_EU_VAT = 3;
+  TAX_JURISDICTION_UK_VAT = 4;
+  TAX_JURISDICTION_CANADA_GST = 5;
+  TAX_JURISDICTION_AUSTRALIA = 6;
+}
+
+// TaxType enum
+enum TaxType {
+  TAX_TYPE_UNSPECIFIED = 0;
+  TAX_TYPE_INCOME_TAX = 1;
+  TAX_TYPE_SALES_TAX = 2;
+  TAX_TYPE_VAT = 3;
+  TAX_TYPE_GST = 4;
+  TAX_TYPE_PAYROLL_TAX = 5;
+  TAX_TYPE_PROPERTY_TAX = 6;
+  TAX_TYPE_WITHHOLDING = 7;
+}
+
+// ComplianceRule
+message ComplianceRule {
+  string id = 1;
+  ComplianceFramework framework = 2;
+  string rule_type = 3;
+  string description = 4;
+  AccountType account_type = 5;
+  repeated string conditions = 6;
+  repeated string actions = 7;
+  string severity = 8;
+  bool active = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+// TaxRule
+message TaxRule {
+  string id = 1;
+  TaxJurisdiction jurisdiction = 2;
+  TaxType tax_type = 3;
+  string name = 4;
+  double rate = 5;
+  double min_amount = 6;
+  double max_amount = 7;
+  repeated string exemptions = 8;
+  google.protobuf.Timestamp effective_from = 9;
+  google.protobuf.Timestamp effective_to = 10;
+  bool active = 11;
+}
+
+// TaxCalculation
+message TaxCalculation {
+  string rule_id = 1;
+  double base_amount = 2;
+  double taxable_amount = 3;
+  double tax_rate = 4;
+  double tax_amount = 5;
+  repeated string exemptions = 6;
+  google.protobuf.Timestamp calculated_at = 7;
+}
+
+// ComplianceViolation
+message ComplianceViolation {
+  string id = 1;
+  string rule_id = 2;
+  string transaction_id = 3;
+  string account_id = 4;
+  string description = 5;
+  string severity = 6;
+  string status = 7;
+  google.protobuf.Timestamp detected_at = 8;
+  google.protobuf.Timestamp resolved_at = 9;
+  string notes = 10;
+}
+
+// TaxReturn
+message TaxReturn {
+  string id = 1;
+  TaxJurisdiction jurisdiction = 2;
+  TaxType tax_type = 3;
+  string period_id = 4;
+  google.protobuf.Timestamp filing_date = 5;
+  google.protobuf.Timestamp due_date = 6;
+  double total_tax = 7;
+  string status = 8;
+  string filed_by = 9;
+  repeated string supporting_docs = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}

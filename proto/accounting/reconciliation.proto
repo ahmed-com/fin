@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package accounting;
+
+option go_package = "accounting/proto/accounting";
+
+import "google/protobuf/timestamp.proto";
+import "proto/accounting/accounting.proto";
+
+// ExternalStatement
+message ExternalStatement {
+  string id = 1;
+  google.protobuf.Timestamp date = 2;
+  string description = 3;
+  Amount amount = 4;
+  string reference = 5;
+  string bank_account = 6;
+}
+
+// ReconciliationMatch
+message ReconciliationMatch {
+  ExternalStatement external_statement = 1;
+  repeated Entry internal_entries = 2;
+  double match_score = 3;
+  string match_type = 4;
+}
+
+// ReconciliationSummary
+message ReconciliationSummary {
+  string account_id = 1;
+  Amount statement_balance = 2;
+  Amount book_balance = 3;
+  Amount difference = 4;
+  int32 reconciled_count = 5;
+  int32 unreconciled_count = 6;
+  double reconciliation_rate = 7;
+}
